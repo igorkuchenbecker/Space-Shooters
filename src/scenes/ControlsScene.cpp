@@ -1,0 +1,66 @@
+#include "scenes/ControlsScene.h"
+
+#include <array>
+#include <string_view>
+
+#include "raylib.h"
+
+#include "core/Config.h"
+#include "rendering/Convert.h"
+#include "scenes/MainMenuScene.h"
+#include "scenes/SceneManager.h"
+#include "scenes/UiInput.h"
+
+namespace si {
+
+namespace {
+
+struct ControlRow {
+    std::string_view keys;
+    std::string_view action;
+};
+
+constexpr std::array<ControlRow, 7> kControls = {{
+    {"A / D  or  LEFT / RIGHT", "move spacecraft"},
+    {"SPACE", "fire"},
+    {"ESC", "pause / menu"},
+    {"ENTER", "confirm"},
+    {"GAMEPAD", "dpad + A fire + ESC (back)"},
+    {"", ""},
+    {"GOAL:", "clear the invasion, earn the highest score"},
+}};
+
+void drawCentered(const char* text, int y, int size, ::Color color) {
+    DrawText(text, cfg::kLogicalWidth / 2 - MeasureText(text, size) / 2, y, size, color);
+}
+
+}  // namespace
+
+ControlsScene::ControlsScene(AppContext& ctx) : ctx_(ctx) {}
+
+void ControlsScene::update(float) {
+    if (ui::backPressed() || ui::confirmPressed()) {
+        if (ctx_.audio) {
+            ctx_.audio->play(Sfx::UiSelect);
+        }
+        ctx_.scenes->switchTo(std::make_unique<MainMenuScene>(ctx_));
+    }
+}
+
+void ControlsScene::draw() {
+    drawCentered("CONTROLS", 84, 52, toRay(palette().accent));
+
+    int y = 170;
+    for (const auto& row : kControls) {
+        if (row.keys.empty()) {
+            continue;
+        }
+        DrawText(std::string(row.keys).c_str(), cfg::kLogicalWidth / 2 - 240, y, 22, toRay(palette().text));
+        DrawText(std::string(row.action).c_str(), cfg::kLogicalWidth / 2 + 40, y, 22, toRay(palette().textDim));
+        y += 38;
+    }
+
+    drawCentered("enter / esc to return", 480, 18, toRay(palette().textDim));
+}
+
+}  // namespace si
