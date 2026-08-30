@@ -13,17 +13,9 @@ inline ::Color toRay(Color c) { return {c.r, c.g, c.b, c.a}; }
 inline ::Rectangle toRay(Rect r) { return {r.x, r.y, r.w, r.h}; }
 inline ::Vector2 toRay(Vec2 v) { return {v.x, v.y}; }
 
-inline ::Color enemyColorFor(EnemyKind kind) {
-    switch (kind) {
-        case EnemyKind::Top:
-            return {255, 70, 70, 255};
-        case EnemyKind::Mid:
-            return {255, 226, 100, 255};
-        case EnemyKind::Low:
-            return {95, 214, 255, 255};
-    }
-    return {255, 255, 255, 255};
-}
+// A cor por tipo de inimigo mora no núcleo (`colorForKind`): render e
+// partículas usam exatamente a mesma fonte.
+inline ::Color enemyColorFor(EnemyKind kind) { return toRay(colorForKind(kind)); }
 
 // Paleta visual do jogo (uma única fonte de cor, sem magic numbers no render).
 struct Palette {

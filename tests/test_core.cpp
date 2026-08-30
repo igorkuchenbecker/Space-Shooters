@@ -1,5 +1,7 @@
 #include "TestFramework.h"
 
+#include <limits>
+
 #include "core/Color.h"
 #include "core/FixedStep.h"
 #include "core/LevelConfig.h"
@@ -11,7 +13,7 @@ using namespace si;
 
 namespace {
 
-inline float vlen(Vec2 v) { return std::sqrtf(v.x*v.x + v.y*v.y); }
+inline float vlen(Vec2 v) { return std::sqrt(v.x*v.x + v.y*v.y); }
 
 bool rangeContains(float v, float lo, float hi) { return v >= lo && v < hi; }
 
@@ -27,7 +29,7 @@ TEST(ColorBasics) {
 TEST(Vec2Ops) {
     const Vec2 a{3.0f, 4.0f};
     CHECK_NEAR((a + Vec2{1.0f, 1.0f}).x, 4.0f, 1e-5f);
-    CHECK_NEAR(std::sqrtf(a.x*a.x + a.y*a.y), 5.0f, 1e-4f);
+    CHECK_NEAR(std::sqrt(a.x*a.x + a.y*a.y), 5.0f, 1e-4f);
 }
 
 TEST(RectOverlaps) {
@@ -105,4 +107,23 @@ TEST(LevelConfigProgressionAndCaps) {
     // Nível inválido vira nível 1.
     CHECK(makeLevelConfig(0).level == 1);
     CHECK(makeLevelConfig(-3).level == 1);
+}
+TEST(FixedStepRejectsInvalidInput) {
+    FixedStep step(1.0f / 60.0f);
+    CHECK(step.push(-1.0f) == 0);                       // dt negativo é ignorado
+    CHECK(step.push(std::numeric_limits<float>::quiet_NaN()) == 0);
+    CHECK(step.push(1.0f / 60.0f) == 1);                // acumulador intacto
+
+    // Passo não-positivo travaria o laço interno: rende 0 em vez de girar.
+    FixedStep degenerate(0.0f);
+    CHECK(degenerate.push(1.0f) == 0);
+    CHECK(degenerate.alpha() == 0.0f);
+}
+
+TEST(FixedStepAlphaTracksLeftover) {
+    FixedStep step(1.0f / 60.0f);
+    CHECK_NEAR(step.alpha(), 0.0f, 1e-5f);
+    (void)step.push(1.0f / 120.0f);  // meio passo
+    CHECK_NEAR(step.alpha(), 0.5f, 1e-3f);
+    CHECK(step.alpha() >= 0.0f && step.alpha() < 1.0f);
 }

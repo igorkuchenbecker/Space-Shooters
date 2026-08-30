@@ -12,6 +12,10 @@ constexpr float kGolden = 2.399963f;  // ângulo pseudo-aleatório determinísti
 }
 
 void ParticleSystem::emitBurst(Vec2 pos, Color color, int count, float speed, float life) {
+    // Uma única alocação na primeira emissão; depois o vetor nunca cresce.
+    if (particles_.capacity() < kMax) {
+        particles_.reserve(kMax);
+    }
     for (int i = 0; i < count; ++i) {
         if (particles_.size() >= kMax) {
             return;

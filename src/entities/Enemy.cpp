@@ -16,4 +16,16 @@ std::int64_t scoreForKind(EnemyKind kind) {
     return 0;
 }
 
+Color colorForKind(EnemyKind kind) {
+    switch (kind) {
+        case EnemyKind::Top:
+            return rgb(255, 70, 70);
+        case EnemyKind::Mid:
+            return rgb(255, 226, 100);
+        case EnemyKind::Low:
+            return rgb(95, 214, 255);
+    }
+    return rgb(255, 255, 255);
+}
+
 }  // namespace si

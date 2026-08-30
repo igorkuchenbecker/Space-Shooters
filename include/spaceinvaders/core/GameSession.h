@@ -5,6 +5,7 @@
 
 #include "core/Color.h"
 #include "core/Config.h"
+#include "core/GameEvent.h"
 #include "core/LevelConfig.h"
 #include "core/Rng.h"
 #include "entities/Particle.h"
@@ -50,6 +51,10 @@ public:
     void setHighScore(std::int64_t value) { highScore_ = value > highScore_ ? value : highScore_; }
     void grantExtraLife() { player_.lives += 1; }
 
+    // Eventos produzidos desde a última leitura; `clearEvents` esvazia a fila.
+    [[nodiscard]] const std::vector<GameEvent>& events() const { return events_; }
+    void clearEvents() { events_.clear(); }
+
     [[nodiscard]] Player& player() { return player_; }
     [[nodiscard]] const Player& player() const { return player_; }
     [[nodiscard]] EnemyFormation& formation() { return formation_; }
@@ -68,14 +73,19 @@ private:
     ProjectileManager shots_;
     std::vector<Shield> shields_;
     ParticleSystem particles_;
+    std::vector<GameEvent> events_;
     int level_ = 1;
     std::int64_t score_ = 0;
     std::int64_t highScore_ = 0;
+    std::int64_t nextExtraLifeAt_ = cfg::kExtraLifeEvery;
     Status status_ = Status::Playing;
+
+    void emit(GameEvent event) { events_.push_back(event); }
 
     void spawnShields();
     void playerFire();
     void enemyFireFrom(Vec2 origin);
+    void killEnemy(Enemy& enemy);
     void playerHit();
     void resolveCollisions();
     void checkEndConditions();

@@ -1,6 +1,5 @@
-#include <algorithm>
-#include <cstdint>
 #include <memory>
+#include <string>
 
 #include "raylib.h"
 
@@ -24,28 +23,30 @@ constexpr int kWindowHeight = 720;
 int main() {
     si::logInfo("space invaders iniciando");
 
-    SetConfigFlags(FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
     InitWindow(kWindowWidth, kWindowHeight, "SPACE INVADERS");
-    SetTargetFPS(si::cfg::kTargetFps);
-    InitAudioDevice();
-    if (!IsAudioDeviceReady()) {
-        si::logError("dispositivo de áudio falhou ao inicializar");
-    }
-
-    if (IsWindowReady()) {
-        si::logInfo("janela pronta");
-    } else {
+    if (!IsWindowReady()) {
+        si::logError("janela indisponivel");
         return 1;
     }
+    SetWindowMinSize(si::cfg::kLogicalWidth / 2, si::cfg::kLogicalHeight / 2);
+    SetTargetFPS(si::cfg::kTargetFps);
+    // ESC é pausa dentro do jogo; sair é decisão do menu.
+    SetExitKey(KEY_NULL);
+
+    InitAudioDevice();
 
     si::Renderer renderer;
     if (!renderer.init(si::cfg::kLogicalWidth, si::cfg::kLogicalHeight)) {
+        CloseAudioDevice();
         CloseWindow();
         return 1;
     }
 
     si::AudioManager audio;
-    audio.init();
+    if (!audio.init()) {
+        si::logWarn("seguindo sem audio");
+    }
 
     si::HighScores highscores;
     const std::string hsPath = si::defaultHighScoresPath();
@@ -57,12 +58,14 @@ int main() {
     app.audio = &audio;
     app.highscores = &highscores;
     app.scenes = &scenes;
+    app.highScoresPath = hsPath;
     scenes.init(std::make_unique<si::MainMenuScene>(app));
 
+    // O dt do frame vai cru para as cenas (entrada de UI é por frame); quem
+    // precisa de determinismo — a simulação — acumula em passos fixos por
+    // dentro (ver PlayingScene).
     while (!WindowShouldClose() && !app.quitRequested) {
-        const float dt = std::min(GetFrameTime(), 0.25f);
-
-        scenes.update(dt);
+        scenes.update(GetFrameTime());
         audio.updateMusic();
 
         renderer.begin();
@@ -70,10 +73,6 @@ int main() {
         scenes.draw();
         renderer.end();
     }
-
-    // Se o jogador sair no meio de uma partida, o placar global não muda —
-    // pontuações só valem registradas pelo game over. Nada a fazer aqui além
-    // de garantir flush de um game-over que não tenha persistido (defensivo).
 
     si::logInfo("encerrando");
     audio.shutdown();

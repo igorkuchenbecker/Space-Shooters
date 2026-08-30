@@ -12,17 +12,8 @@ namespace {
 
 Color playerHitColor() { return rgb(255, 150, 40); }
 Color shieldHitColor() { return rgb(120, 255, 130); }
-Color enemyColorFor(EnemyKind kind) {
-    switch (kind) {
-        case EnemyKind::Top:
-            return rgb(255, 70, 70);
-        case EnemyKind::Mid:
-            return rgb(255, 226, 100);
-        case EnemyKind::Low:
-            return rgb(95, 214, 255);
-    }
-    return rgb(255, 255, 255);
-}
+
+Rect enemyRect(const Enemy& e) { return makeRect(e.pos, Vec2{cfg::kEnemyWidth, cfg::kEnemyHeight}); }
 
 }  // namespace
 
@@ -30,9 +21,11 @@ GameSession::GameSession(std::uint64_t seed) : rng_(seed) {}
 
 void GameSession::reset() {
     score_ = 0;
+    nextExtraLifeAt_ = cfg::kExtraLifeEvery;
     player_.lives = cfg::kStartLives;
     level_ = 1;
     status_ = Status::Playing;
+    events_.clear();
     startLevel(level_);
 }
 
@@ -74,12 +67,14 @@ void GameSession::playerFire() {
     shots_.addShot(Owner::Player, pos, Vec2{0.0f, -cfg::kPlayerShotSpeed}, cfg::kPlayerShotWidth,
                    cfg::kPlayerShotHeight, -1.0f);
     player_.beginFireCooldown();
+    emit(GameEvent::PlayerShot);
 }
 
 void GameSession::enemyFireFrom(Vec2 origin) {
     const Vec2 pos{origin.x - cfg::kEnemyShotWidth * 0.5f, origin.y};
     shots_.addShot(Owner::Enemy, pos, Vec2{0.0f, levelConfig_.enemyShotSpeed}, cfg::kEnemyShotWidth,
                    cfg::kEnemyShotHeight, cfg::kEnemyShotMaxLifetime);
+    emit(GameEvent::EnemyShot);
 }
 
 void GameSession::addScore(std::int64_t points) {
@@ -87,26 +82,37 @@ void GameSession::addScore(std::int64_t points) {
     if (score_ > highScore_) {
         highScore_ = score_;
     }
+    // Vida extra por faixa de pontuação; o laço cobre um salto grande de uma vez.
+    while (score_ >= nextExtraLifeAt_) {
+        nextExtraLifeAt_ += cfg::kExtraLifeEvery;
+        if (player_.lives < cfg::kMaxLives) {
+            grantExtraLife();
+            emit(GameEvent::ExtraLife);
+        }
+    }
+}
+
+void GameSession::killEnemy(Enemy& enemy) {
+    enemy.alive = false;
+    particles_.emitBurst(center(enemyRect(enemy)), colorForKind(enemy.kind), 16, 190.0f, 0.45f);
+    emit(GameEvent::EnemyKilled);
+    addScore(enemy.scoreValue);
 }
 
 void GameSession::playerHit() {
     player_.lives -= 1;
     player_.hit();
     particles_.emitBurst(center(player_.rect()), playerHitColor(), 26, 220.0f, 0.55f);
+    emit(GameEvent::PlayerHit);
 
-    // Tiro que matou some; tira também os inimigos em voo (fair play).
-    {
-        const auto& live = shots_.shots();
-        for (std::size_t i = 0; i < live.size(); ++i) {
-            if (live[i].owner == Owner::Enemy) {
-                shots_.kill(i);
-            }
-        }
-    }
-    shots_.sweepDead();
+    // Tira também os tiros inimigos em voo (fair play no respawn). Só marca:
+    // quem varre o vetor é o `sweepDead` no fim de `resolveCollisions`, para
+    // não invalidar os índices do laço que pode estar em andamento.
+    shots_.killAllOf(Owner::Enemy);
 
     if (player_.lives <= 0) {
         status_ = Status::Lost;
+        emit(GameEvent::GameOver);
     }
 }
 
@@ -133,42 +139,34 @@ void GameSession::update(float dt, const GameInput& input) {
 }
 
 void GameSession::resolveCollisions() {
-    const bool playerInvuln = player_.isInvulnerable();
-
-    // Formação tocando a nave: a nave perde vida e o inimigo morre.
-    if (!playerInvuln) {
+    // Nenhum `sweepDead` até o fim: o laço abaixo indexa o vetor de projéteis,
+    // e remover elementos no meio invalidaria os índices.
+    if (!player_.isInvulnerable()) {
+        // Formação tocando a nave: a nave perde vida e o inimigo morre.
         for (auto& e : formation_.enemiesMut()) {
-            if (e.alive && overlaps(makeRect(e.pos, Vec2{cfg::kEnemyWidth, cfg::kEnemyHeight}), player_.rect())) {
-                e.alive = false;
-                addScore(e.scoreValue);
-                particles_.emitBurst(center(makeRect(e.pos, Vec2{cfg::kEnemyWidth, cfg::kEnemyHeight})),
-                                     enemyColorFor(e.kind), 12, 160.0f, 0.4f);
+            if (e.alive && overlaps(enemyRect(e), player_.rect())) {
+                killEnemy(e);
                 playerHit();
                 break;
             }
         }
     }
 
-    auto& projectiles = shots_.shots();
+    const auto& projectiles = shots_.shots();
     for (std::size_t i = 0; i < projectiles.size(); ++i) {
-        auto& p = projectiles[i];
+        const Projectile& p = projectiles[i];
         if (p.dead) {
             continue;
         }
         const Rect pRect = makeRect(p.pos, Vec2{p.w, p.h});
+        const Owner owner = p.owner;
 
-        if (p.owner == Owner::Player) {
+        if (owner == Owner::Player) {
             // Tiro do jogador vs inimigos.
             bool consumed = false;
             for (auto& e : formation_.enemiesMut()) {
-                if (!e.alive) {
-                    continue;
-                }
-                const Rect eRect = makeRect(e.pos, Vec2{cfg::kEnemyWidth, cfg::kEnemyHeight});
-                if (overlaps(pRect, eRect)) {
-                    e.alive = false;
-                    addScore(e.scoreValue);
-                    particles_.emitBurst(center(eRect), enemyColorFor(e.kind), 16, 190.0f, 0.45f);
+                if (e.alive && overlaps(pRect, enemyRect(e))) {
+                    killEnemy(e);
                     shots_.kill(i);
                     consumed = true;
                     break;
@@ -177,29 +175,20 @@ void GameSession::resolveCollisions() {
             if (consumed) {
                 continue;
             }
-            // Tiro do jogador vs barreiras.
-            for (auto& shield : shields_) {
-                if (shield.destroy(pRect)) {
-                    particles_.emitBurst(center(pRect), shieldHitColor(), 6, 120.0f, 0.3f);
-                    shots_.kill(i);
-                    consumed = true;
-                    break;
-                }
-            }
-        } else {
-            // Tiro inimigo vs nave.
-            if (!playerInvuln && overlaps(pRect, player_.rect())) {
-                playerHit();
+        } else if (!player_.isInvulnerable() && overlaps(pRect, player_.rect())) {
+            // Tiro inimigo vs nave: `playerHit` marca os tiros inimigos como
+            // mortos, incluindo este.
+            playerHit();
+            continue;
+        }
+
+        // Qualquer tiro vs barreiras.
+        for (auto& shield : shields_) {
+            if (shield.destroy(pRect)) {
+                particles_.emitBurst(center(pRect), shieldHitColor(), 6, 120.0f, 0.3f);
+                emit(GameEvent::ShieldChipped);
                 shots_.kill(i);
-                continue;
-            }
-            // Tiro inimigo vs barreiras.
-            for (auto& shield : shields_) {
-                if (shield.destroy(pRect)) {
-                    particles_.emitBurst(center(pRect), shieldHitColor(), 6, 120.0f, 0.3f);
-                    shots_.kill(i);
-                    break;
-                }
+                break;
             }
         }
     }
@@ -213,11 +202,13 @@ void GameSession::checkEndConditions() {
     if (!formation_.hasEnemies()) {
         addScore(static_cast<std::int64_t>(cfg::kScoreBonusLevelClear) * level_);
         status_ = Status::Won;
+        emit(GameEvent::LevelCleared);
         return;
     }
     // Formação invadiu a linha do jogador: derrota imediata.
     if (formation_.bottomY() >= player_.rect().y) {
         status_ = Status::Lost;
+        emit(GameEvent::GameOver);
     }
 }
 

@@ -121,10 +121,9 @@ void drawSession(const GameSession& session, float time) {
         }
     }
 
-    drawPlayerShip(session.player(), time);
-
+    // Escudos antes da nave: a nave nunca pode ficar escondida atrás deles.
+    const ::Color shieldC = toRay(palette().shield);
     for (const auto& shield : session.shields()) {
-        const ::Color shieldC = toRay(palette().shield);
         for (int r = 0; r < Shield::kRows; ++r) {
             for (int c = 0; c < Shield::kCols; ++c) {
                 if (shield.blockAlive(c, r)) {
@@ -133,6 +132,8 @@ void drawSession(const GameSession& session, float time) {
             }
         }
     }
+
+    drawPlayerShip(session.player(), time);
 
     drawProjectiles(session.projectiles());
     drawParticleSystem(session.particles());

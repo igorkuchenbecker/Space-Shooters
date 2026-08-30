@@ -24,6 +24,11 @@ enum class Sfx : std::uint8_t {
 // execução — nada é carregado por frame.
 class AudioManager {
 public:
+    AudioManager() = default;
+    ~AudioManager() { shutdown(); }
+    AudioManager(const AudioManager&) = delete;
+    AudioManager& operator=(const AudioManager&) = delete;
+
     bool init();
     void shutdown();
 
@@ -38,12 +43,15 @@ public:
     void setMasterVolume(float volume);
 
     [[nodiscard]] bool isMusicPlaying() const;
+    [[nodiscard]] bool ready() const { return ready_; }
 
 private:
     Sound sounds_[static_cast<std::size_t>(Sfx::Count)]{};
     Music music_{};
     std::vector<unsigned char> musicWav_;  // mantido vivo enquanto a música existe
     float masterVolume_ = 0.85f;
+    bool ready_ = false;      // SFX sintetizados com sucesso
+    bool hasMusic_ = false;   // música carregada (pode faltar mesmo com SFX ok)
 
     bool buildAllSounds();
     bool buildMusic();

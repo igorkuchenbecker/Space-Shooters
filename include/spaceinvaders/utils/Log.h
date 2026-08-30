@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdio>
+#include <string_view>
 
 namespace si {
 
@@ -10,5 +11,10 @@ namespace si {
 inline void logInfo(const char* msg) { std::fprintf(stderr, "[SPACEINVADERS] %s\n", msg); }
 inline void logWarn(const char* msg) { std::fprintf(stderr, "[SPACEINVADERS][WARN] %s\n", msg); }
 inline void logError(const char* msg) { std::fprintf(stderr, "[SPACEINVADERS][ERROR] %s\n", msg); }
+
+// Evento de ciclo de vida com um alvo nomeado (ex: "push cena", "Pause").
+inline void logInfoWith(const char* msg, std::string_view target) {
+    std::fprintf(stderr, "[SPACEINVADERS] %s: %.*s\n", msg, static_cast<int>(target.size()), target.data());
+}
 
 }  // namespace si

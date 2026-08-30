@@ -154,3 +154,43 @@ TEST(ProjectilesRemoveOffScreen) {
     pm.update(0.01f, static_cast<float>(cfg::kLogicalHeight));
     CHECK(pm.shots().empty());
 }
+TEST(ProjectilesKillAllOfOwner) {
+    ProjectileManager pm;
+    pm.addShot(Owner::Player, Vec2{10.0f, 100.0f}, Vec2{0.0f, -100.0f}, 4.0f, 14.0f, -1.0f);
+    pm.addShot(Owner::Enemy, Vec2{20.0f, 20.0f}, Vec2{0.0f, 50.0f}, 8.0f, 16.0f, 7.0f);
+    pm.addShot(Owner::Enemy, Vec2{40.0f, 30.0f}, Vec2{0.0f, 50.0f}, 8.0f, 16.0f, 7.0f);
+    CHECK(pm.count() == 3);
+
+    // Marca sem varrer: os índices de quem estiver iterando seguem válidos.
+    pm.killAllOf(Owner::Enemy);
+    CHECK(pm.count() == 3);
+    CHECK(pm.hasPlayerShot());
+
+    pm.sweepDead();
+    CHECK(pm.count() == 1);
+    CHECK(pm.shots()[0].owner == Owner::Player);
+}
+
+TEST(FormationVolleyRespectsShooterCap) {
+    Formation f;
+    f.reset(defaultConfig());
+    Rng rng(11);
+    for (int i = 0; i < 200; ++i) {
+        const auto volley = f.pollShots(rng, 0.001f, 1.0f / 60.0f);
+        CHECK(static_cast<int>(volley.size()) <= Formation::kMaxShootersPerVolley);
+    }
+}
+
+TEST(FormationEmptyIsInertButSafe) {
+    Formation f;
+    FormationConfig empty = defaultConfig();
+    empty.cols = 0;
+    empty.rows = 0;
+    f.reset(empty);
+    CHECK(f.totalCount() == 0);
+    CHECK(!f.hasEnemies());
+
+    Rng rng(5);
+    f.update(1.0f / 60.0f);  // não pode dividir por zero nem travar
+    CHECK(f.pollShots(rng, 0.5f, 1.0f / 60.0f).empty());
+}

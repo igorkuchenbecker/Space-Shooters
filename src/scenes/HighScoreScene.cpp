@@ -1,6 +1,7 @@
 #include "scenes/HighScoreScene.h"
 
 #include <cstdio>
+#include <vector>
 
 #include "raylib.h"
 
@@ -34,7 +35,9 @@ void HighScoreScene::update(float) {
 void HighScoreScene::draw() {
     drawCentered("HIGH SCORES", 84, 52, toRay(palette().accent));
 
-    const auto& list = ctx_.highscores ? ctx_.highscores->list() : std::vector<std::int64_t>{};
+    // Nada de copiar o vetor por frame: o ternário com um prvalue faria isso.
+    static const std::vector<std::int64_t> kEmpty;
+    const std::vector<std::int64_t>& list = ctx_.highscores ? ctx_.highscores->list() : kEmpty;
     if (list.empty()) {
         drawCentered("no records yet — good luck!", 240, 24, toRay(palette().textDim));
     } else {

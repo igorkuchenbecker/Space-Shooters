@@ -14,13 +14,21 @@ namespace si {
 
 namespace {
 
+constexpr float kMusicVolume = 0.5f;
+
 // Cria um Sound raylib a partir de samples PCM16. O buffer é alocado com
 // RL_MALLOC (a mesma família usada pela própria raylib) e copiado ali; em
 // seguida a raylib assume a posse (ou copia) — nos dois casos é seguro
 // nunca liberar manualmente ao longo de uma partida inteira.
 Sound makeSound(const std::vector<std::int16_t>& samples) {
     const std::size_t n = samples.size();
+    if (n == 0) {
+        return Sound{};
+    }
     void* data = RL_MALLOC(n * sizeof(std::int16_t));
+    if (data == nullptr) {
+        return Sound{};
+    }
     std::memcpy(data, samples.data(), n * sizeof(std::int16_t));
 
     Wave wave = {};
@@ -44,15 +52,19 @@ bool AudioManager::init() {
         logError("falha ao sintetizar efeitos sonoros");
         return false;
     }
-    if (!buildMusic()) {
+    hasMusic_ = buildMusic();
+    if (!hasMusic_) {
         logWarn("falha ao sintetizar música — seguindo só com SFX");
     }
     setMasterVolume(masterVolume_);
+    ready_ = true;
     logInfo("áudio sintetizado e pronto");
     return true;
 }
 
 void AudioManager::shutdown() {
+    ready_ = false;
+    hasMusic_ = false;
     if (music_.frameCount != 0) {
         UnloadMusicStream(music_);
         music_ = {};
@@ -126,19 +138,52 @@ bool AudioManager::buildMusic() {
     return music_.frameCount != 0;
 }
 
-void AudioManager::play(Sfx sfx) { PlaySound(sounds_[static_cast<std::size_t>(sfx)]); }
+// Todas as chamadas são no-op quando a síntese falhou: o jogo roda mudo em
+// vez de tocar em structs zeradas.
+void AudioManager::play(Sfx sfx) {
+    if (!ready_ || sfx >= Sfx::Count) {
+        return;
+    }
+    PlaySound(sounds_[static_cast<std::size_t>(sfx)]);
+}
 
-void AudioManager::playMusic() { PlayMusicStream(music_); SetMusicVolume(music_, 0.5f * masterVolume_); }
-void AudioManager::pauseMusic() { PauseMusicStream(music_); }
-void AudioManager::resumeMusic() { ResumeMusicStream(music_); }
-void AudioManager::stopMusic() { StopMusicStream(music_); }
-void AudioManager::updateMusic() { UpdateMusicStream(music_); }
+void AudioManager::playMusic() {
+    if (!hasMusic_) {
+        return;
+    }
+    SetMusicVolume(music_, kMusicVolume * masterVolume_);
+    PlayMusicStream(music_);
+}
+
+void AudioManager::pauseMusic() {
+    if (hasMusic_) {
+        PauseMusicStream(music_);
+    }
+}
+
+void AudioManager::resumeMusic() {
+    if (hasMusic_) {
+        ResumeMusicStream(music_);
+    }
+}
+
+void AudioManager::stopMusic() {
+    if (hasMusic_) {
+        StopMusicStream(music_);
+    }
+}
+
+void AudioManager::updateMusic() {
+    if (hasMusic_) {
+        UpdateMusicStream(music_);
+    }
+}
 
 void AudioManager::setMasterVolume(float volume) {
     masterVolume_ = std::clamp(volume, 0.0f, 1.0f);
     SetMasterVolume(masterVolume_);
 }
 
-bool AudioManager::isMusicPlaying() const { return IsMusicStreamPlaying(music_); }
+bool AudioManager::isMusicPlaying() const { return hasMusic_ && IsMusicStreamPlaying(music_); }
 
 }  // namespace si

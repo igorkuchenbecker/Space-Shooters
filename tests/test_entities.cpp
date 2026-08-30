@@ -65,28 +65,28 @@ TEST(ProjectileOwnership) {
     CHECK(p.life == 1e9f);
 }
 
-TEST(ShieldSpawnAndDome) {
+TEST(ShieldSpawnAndBunkerShape) {
     Shield s;
     s.spawn(Vec2{100.0f, 400.0f});
     CHECK(s.origin().x == 100.0f);
     CHECK(s.blocksLeft() > 0);
-    // O desenho em "dome" não nasce 100% preenchido (colunas internas vazias).
+    // O bunker não nasce 100% preenchido: tem topo abaulado e arco embaixo.
     CHECK(s.blocksLeft() < s.kCols * s.kRows);
 
-    // Formato padrão: a fileira superior é a mais larga do domo.
     int topAlive = 0;
     int bodyAlive = 0;
+    int bottomAlive = 0;
     for (int c = 0; c < s.kCols; ++c) {
-        if (s.blockAlive(c, 0)) {
-            ++topAlive;
-        }
-        if (s.blockAlive(c, s.kRows / 2)) {
-            ++bodyAlive;
-        }
+        topAlive += s.blockAlive(c, 0) ? 1 : 0;
+        bodyAlive += s.blockAlive(c, s.kRows / 2) ? 1 : 0;
+        bottomAlive += s.blockAlive(c, s.kRows - 1) ? 1 : 0;
     }
-    CHECK(topAlive == s.kCols);  // fileira 0 sempre cheia
-    CHECK(topAlive > bodyAlive);
+    CHECK(bodyAlive == s.kCols);   // o miolo é uma parede cheia
+    CHECK(topAlive < bodyAlive);   // topo abaulado
     CHECK(topAlive > 0);
+    CHECK(bottomAlive < bodyAlive);      // arco recortado embaixo
+    CHECK(s.blockAlive(0, s.kRows - 1));  // ...com as pernas nas laterais
+    CHECK(!s.blockAlive(s.kCols / 2, s.kRows - 1));
 }
 
 TEST(ShieldDestroyAndEmpty) {
@@ -132,4 +132,12 @@ TEST(ParticleCapacityCapped) {
     ParticleSystem fx;
     fx.emitBurst(Vec2{0.0f, 0.0f}, rgb(255, 255, 255), 3000, 50.0f, 1.0f);
     CHECK(fx.particles().size() <= fx.kMax);
+}
+TEST(EnemyColorsAreDistinctPerKind) {
+    const Color top = colorForKind(EnemyKind::Top);
+    const Color mid = colorForKind(EnemyKind::Mid);
+    const Color low = colorForKind(EnemyKind::Low);
+    CHECK(!(top.r == mid.r && top.g == mid.g && top.b == mid.b));
+    CHECK(!(mid.r == low.r && mid.g == low.g && mid.b == low.b));
+    CHECK(top.a == 255 && mid.a == 255 && low.a == 255);
 }

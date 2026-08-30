@@ -32,6 +32,7 @@ void SceneManager::push(std::unique_ptr<Scene> next) {
     if (!next) {
         return;
     }
+    logInfoWith("push cena", next->name());
     next->onEnter();
     stack_.push_back(std::move(next));
 }
@@ -40,6 +41,7 @@ void SceneManager::pop() {
     if (stack_.empty()) {
         return;
     }
+    logInfoWith("pop cena", stack_.back()->name());
     stack_.back()->onExit();
     stack_.pop_back();
 }
@@ -47,7 +49,7 @@ void SceneManager::pop() {
 const Scene* SceneManager::top() const { return stack_.empty() ? nullptr : stack_.back().get(); }
 
 void SceneManager::commitSwitch() {
-    logInfo("troca de cena");
+    logInfoWith("troca de cena", transition_->next->name());
     for (auto& s : stack_) {
         s->onExit();
     }

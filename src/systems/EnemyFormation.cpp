@@ -1,7 +1,6 @@
 #include "systems/EnemyFormation.h"
 
 #include <algorithm>
-#include <map>
 
 #include "core/Config.h"
 
@@ -73,7 +72,11 @@ float EnemyFormation::bottomY() const {
 }
 
 float EnemyFormation::effectiveSpeed() const {
-    const float remaining = static_cast<float>(aliveCount()) / static_cast<float>(totalCount());
+    const int total = totalCount();
+    if (total <= 0) {
+        return cfg_.baseSpeed;
+    }
+    const float remaining = static_cast<float>(aliveCount()) / static_cast<float>(total);
     float tier = 1.0f;
     if (remaining <= 0.33f) {
         tier = 2.6f;
@@ -122,52 +125,50 @@ void EnemyFormation::update(float dt) {
 
 std::vector<Vec2> EnemyFormation::pollShots(Rng& rng, float fireInterval, float dt) {
     std::vector<Vec2> origins;
-    if (!hasEnemies()) {
+    if (!hasEnemies() || cfg_.cols <= 0) {
         return origins;
     }
 
     fireTimer_ -= dt;
-    if (fireTimer_ <= 0.0f) {
-        fireTimer_ = fireInterval > 0.0f ? fireInterval : 1.0f;
+    if (fireTimer_ > 0.0f) {
+        return origins;
+    }
+    fireTimer_ = fireInterval > 0.0f ? fireInterval : 1.0f;
 
-        // Atirador mais baixo de cada coluna ainda viva.
-        std::map<int, std::size_t> bottomPerColumn;
-        for (std::size_t i = 0; i < enemies_.size(); ++i) {
-            const auto& e = enemies_[i];
-            if (!e.alive) {
-                continue;
-            }
-            // A coluna é derivada da posição intacta da grade; aproximamos pelo
-            // índice residual da grid para manter o padrão clássico.
-            const int col = static_cast<int>(i) % cfg_.cols;
-            const auto it = bottomPerColumn.find(col);
-            if (it == bottomPerColumn.end() || enemies_[it->second].pos.y < e.pos.y) {
-                bottomPerColumn[col] = i;
-            }
+    // Atirador de cada coluna = o inimigo vivo mais baixo dela (padrão
+    // clássico). A coluna vem do índice na grade, que nunca é reordenada.
+    constexpr std::size_t kNone = static_cast<std::size_t>(-1);
+    std::vector<std::size_t> bottomPerColumn(static_cast<std::size_t>(cfg_.cols), kNone);
+    for (std::size_t i = 0; i < enemies_.size(); ++i) {
+        const auto& e = enemies_[i];
+        if (!e.alive) {
+            continue;
         }
+        const std::size_t col = i % static_cast<std::size_t>(cfg_.cols);
+        const std::size_t current = bottomPerColumn[col];
+        if (current == kNone || enemies_[current].pos.y < e.pos.y) {
+            bottomPerColumn[col] = i;
+        }
+    }
 
-        const int maxShooters = 3;
-        const int shooters = rng.intRange(1, std::min(maxShooters, static_cast<int>(bottomPerColumn.size())) + 1);
-        if (shooters > 0) {
-            // Embaralha as colunas candidatas.
-            std::vector<std::size_t> candidates;
-            candidates.reserve(bottomPerColumn.size());
-            for (const auto& kv : bottomPerColumn) {
-                candidates.push_back(kv.second);
-            }
-            for (int i = 0; i < shooters; ++i) {
-                const int pick = rng.intRange(0, static_cast<int>(candidates.size()));
-                if (pick >= static_cast<int>(candidates.size())) {
-                    break;
-                }
-                const auto& e = enemies_[candidates[pick]];
-                origins.push_back(Vec2{e.pos.x + cfg::kEnemyWidth * 0.5f, e.pos.y + cfg::kEnemyHeight});
-                candidates.erase(candidates.begin() + pick);
-                if (candidates.empty()) {
-                    break;
-                }
-            }
+    std::vector<std::size_t> candidates;
+    candidates.reserve(bottomPerColumn.size());
+    for (const std::size_t idx : bottomPerColumn) {
+        if (idx != kNone) {
+            candidates.push_back(idx);
         }
+    }
+    if (candidates.empty()) {
+        return origins;
+    }
+
+    const int shooters = rng.intRange(1, std::min(kMaxShootersPerVolley, static_cast<int>(candidates.size())) + 1);
+    origins.reserve(static_cast<std::size_t>(shooters));
+    for (int i = 0; i < shooters && !candidates.empty(); ++i) {
+        const std::size_t pick = static_cast<std::size_t>(rng.intRange(0, static_cast<int>(candidates.size())));
+        const auto& e = enemies_[candidates[pick]];
+        origins.push_back(Vec2{e.pos.x + cfg::kEnemyWidth * 0.5f, e.pos.y + cfg::kEnemyHeight});
+        candidates.erase(candidates.begin() + static_cast<std::ptrdiff_t>(pick));
     }
     return origins;
 }

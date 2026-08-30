@@ -7,14 +7,15 @@ namespace si {
 
 namespace {
 
-// Máscara clássica da barreira (10 colunas x 6 linhas). '#' = bloco vivo.
+// Máscara clássica da barreira (10 colunas x 6 linhas): topo abaulado e
+// arco recortado embaixo, onde a nave se abriga. '#' = bloco vivo.
 constexpr const char* kMask[Shield::kRows] = {
-    "##########",
-    "##########",
-    ".########.",
     "..######..",
-    "...####...",
-    "....##....",
+    ".########.",
+    "##########",
+    "##########",
+    "###....###",
+    "##......##",
 };
 
 constexpr std::size_t kIndex(int col, int row) { return static_cast<std::size_t>(row * Shield::kCols + col); }

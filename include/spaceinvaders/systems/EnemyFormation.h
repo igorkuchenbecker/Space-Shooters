@@ -28,6 +28,9 @@ struct FormationConfig {
 // limite, desce, e acelera conforme os inimigos morrem.
 class EnemyFormation {
 public:
+    // Quantos inimigos disparam por vez, no máximo.
+    static constexpr int kMaxShootersPerVolley = 3;
+
     void reset(const FormationConfig& config);
 
     // Avança a formação. Retorna false quando não há mais inimigos vivos.

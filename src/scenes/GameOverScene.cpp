@@ -28,20 +28,24 @@ GameOverScene::GameOverScene(AppContext& ctx) : ctx_(ctx) {
     newRecord_ = ctx_.highscores && ctx_.highscores->qualifies(ctx_.lastScore);
 }
 
+void GameOverScene::moveSelection(int index) {
+    if (index == selection_) {
+        return;  // sem blip repetido quando já está na opção
+    }
+    selection_ = index;
+    if (ctx_.audio) {
+        ctx_.audio->play(Sfx::UiSelect);
+    }
+}
+
 void GameOverScene::update(float) {
     if (ui::upPressed() ||
         (IsGamepadAvailable(0) && GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) < -0.5f)) {
-        selection_ = 0;
-        if (ctx_.audio) {
-            ctx_.audio->play(Sfx::UiSelect);
-        }
+        moveSelection(0);
     }
     if (ui::downPressed() ||
         (IsGamepadAvailable(0) && GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) > 0.5f)) {
-        selection_ = 1;
-        if (ctx_.audio) {
-            ctx_.audio->play(Sfx::UiSelect);
-        }
+        moveSelection(1);
     }
     if (ui::confirmPressed()) {
         if (ctx_.audio) {
@@ -59,7 +63,7 @@ void GameOverScene::draw() {
     drawCentered("GAME OVER", 110, 72, toRay(rgb(255, 90, 90)));
 
     char buffer[64];
-    std::snprintf(buffer, sizeof buffer, "SCORE  %06d", ctx_.lastScore);
+    std::snprintf(buffer, sizeof buffer, "SCORE  %06lld", static_cast<long long>(ctx_.lastScore));
     drawCentered(buffer, 230, 30, toRay(palette().text));
 
     std::snprintf(buffer, sizeof buffer, "LEVEL REACHED  %d", ctx_.lastLevel);

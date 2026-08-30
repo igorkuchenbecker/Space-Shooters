@@ -1,8 +1,7 @@
 #pragma once
 
-#include <memory>
-#include <optional>
-#include <vector>
+#include <cstdint>
+#include <string>
 
 #include "audio/AudioManager.h"
 #include "HighScores.h"
@@ -18,8 +17,9 @@ struct AppContext {
     AudioManager* audio = nullptr;
     HighScores* highscores = nullptr;
     SceneManager* scenes = nullptr;
+    std::string highScoresPath;
 
-    int lastScore = 0;
+    std::int64_t lastScore = 0;
     int lastLevel = 0;
     bool lastWon = false;
     bool quitRequested = false;

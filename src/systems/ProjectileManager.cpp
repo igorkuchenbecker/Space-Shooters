@@ -35,6 +35,14 @@ void ProjectileManager::kill(std::size_t index) {
     }
 }
 
+void ProjectileManager::killAllOf(Owner owner) {
+    for (auto& s : shots_) {
+        if (s.owner == owner) {
+            s.dead = true;
+        }
+    }
+}
+
 void ProjectileManager::sweepDead() {
     shots_.erase(std::remove_if(shots_.begin(), shots_.end(), [](const Projectile& s) { return s.dead; }),
                  shots_.end());
@@ -43,12 +51,8 @@ void ProjectileManager::sweepDead() {
 const std::vector<Projectile>& ProjectileManager::shots() const { return shots_; }
 
 bool ProjectileManager::hasPlayerShot() const {
-    for (const auto& s : shots_) {
-        if (s.owner == Owner::Player) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(shots_.begin(), shots_.end(),
+                       [](const Projectile& s) { return s.owner == Owner::Player && !s.dead; });
 }
 
 }  // namespace si

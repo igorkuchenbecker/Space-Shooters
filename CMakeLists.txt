@@ -9,18 +9,35 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SPACEINVADERS_WERROR "Trata warnings como erros" OFF)
+option(SPACEINVADERS_BUILD_GAME "Compila o executável do jogo (exige raylib)" ON)
 
 # ----------------------------------------------------------------------------
-# raylib: tenta target importado do config; senão cai no pkg-config.
+# raylib: tenta target importado do config; senão cai no pkg-config. A busca é
+# opcional de propósito — `si_core` e `si_tests` não dependem de raylib, então
+# a lógica pura continua compilável e testável em CI headless sem a biblioteca.
 # ----------------------------------------------------------------------------
-find_package(raylib CONFIG QUIET)
-if (NOT raylib_FOUND)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(RAYLIB_PC REQUIRED IMPORTED_TARGET raylib)
-    set(RAYLIB_TARGET PkgConfig::RAYLIB_PC)
-    set(RAYLIB_INCLUDE_DIRS "${RAYLIB_PC_INCLUDE_DIRS}")
-else ()
-    set(RAYLIB_TARGET raylib)
+set(RAYLIB_TARGET "")
+if (SPACEINVADERS_BUILD_GAME)
+    find_package(raylib CONFIG QUIET)
+    if (raylib_FOUND)
+        set(RAYLIB_TARGET raylib)
+    else ()
+        find_package(PkgConfig QUIET)
+        if (PkgConfig_FOUND)
+            pkg_check_modules(RAYLIB_PC QUIET IMPORTED_TARGET raylib)
+            if (RAYLIB_PC_FOUND)
+                set(RAYLIB_TARGET PkgConfig::RAYLIB_PC)
+                set(RAYLIB_INCLUDE_DIRS "${RAYLIB_PC_INCLUDE_DIRS}")
+            endif ()
+        endif ()
+    endif ()
+
+    if (NOT RAYLIB_TARGET)
+        message(WARNING
+            "raylib nao encontrada: o executavel do jogo nao sera compilado. "
+            "A logica pura (si_core) e os testes (si_tests) seguem disponiveis. "
+            "Use -DSPACEINVADERS_BUILD_GAME=OFF para silenciar este aviso.")
+    endif ()
 endif ()
 
 # ----------------------------------------------------------------------------
@@ -42,8 +59,9 @@ target_include_directories(si_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/sp
 target_compile_features(si_core PUBLIC cxx_std_20)
 
 # ----------------------------------------------------------------------------
-# Executável do jogo.
+# Executável do jogo (só quando raylib está disponível).
 # ----------------------------------------------------------------------------
+if (RAYLIB_TARGET)
 add_executable(spaceinvaders
     src/main.cpp
     src/HighScores.cpp
@@ -65,6 +83,7 @@ add_executable(spaceinvaders
 target_link_libraries(spaceinvaders PRIVATE si_core ${RAYLIB_TARGET})
 if (RAYLIB_INCLUDE_DIRS)
     target_include_directories(spaceinvaders PRIVATE ${RAYLIB_INCLUDE_DIRS})
+endif ()
 endif ()
 
 # ----------------------------------------------------------------------------

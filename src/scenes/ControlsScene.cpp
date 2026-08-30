@@ -1,7 +1,6 @@
 #include "scenes/ControlsScene.h"
 
 #include <array>
-#include <string_view>
 
 #include "raylib.h"
 
@@ -16,8 +15,8 @@ namespace si {
 namespace {
 
 struct ControlRow {
-    std::string_view keys;
-    std::string_view action;
+    const char* keys;
+    const char* action;
 };
 
 constexpr std::array<ControlRow, 7> kControls = {{
@@ -50,13 +49,14 @@ void ControlsScene::update(float) {
 void ControlsScene::draw() {
     drawCentered("CONTROLS", 84, 52, toRay(palette().accent));
 
+    // `const char*` direto: DrawText por frame não deve alocar nada.
     int y = 170;
     for (const auto& row : kControls) {
-        if (row.keys.empty()) {
+        if (row.keys[0] == '\0') {
             continue;
         }
-        DrawText(std::string(row.keys).c_str(), cfg::kLogicalWidth / 2 - 240, y, 22, toRay(palette().text));
-        DrawText(std::string(row.action).c_str(), cfg::kLogicalWidth / 2 + 40, y, 22, toRay(palette().textDim));
+        DrawText(row.keys, cfg::kLogicalWidth / 2 - 240, y, 22, toRay(palette().text));
+        DrawText(row.action, cfg::kLogicalWidth / 2 + 40, y, 22, toRay(palette().textDim));
         y += 38;
     }
 

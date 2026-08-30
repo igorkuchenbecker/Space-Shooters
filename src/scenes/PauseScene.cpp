@@ -29,28 +29,45 @@ void PauseScene::onEnter() {
         ctx_.audio->pauseMusic();
     }
     selection_ = 0;
+    resumeMusicOnExit_ = true;
 }
 
 void PauseScene::onExit() {
-    if (ctx_.audio) {
+    if (resumeMusicOnExit_ && ctx_.audio) {
         ctx_.audio->resumeMusic();
     }
+}
+
+void PauseScene::moveSelection(int index) {
+    if (index == selection_) {
+        return;
+    }
+    selection_ = index;
+    if (ctx_.audio) {
+        ctx_.audio->play(Sfx::UiSelect);
+    }
+}
+
+void PauseScene::confirm() {
+    if (ctx_.audio) {
+        ctx_.audio->play(Sfx::UiSelect);
+    }
+    if (selection_ == 0) {
+        ctx_.scenes->pop();
+        return;
+    }
+    resumeMusicOnExit_ = false;
+    ctx_.scenes->switchTo(std::make_unique<MainMenuScene>(ctx_));
 }
 
 void PauseScene::update(float) {
     if (ui::upPressed() ||
         (IsGamepadAvailable(0) && GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) < -0.5f)) {
-        selection_ = 0;
-        if (ctx_.audio) {
-            ctx_.audio->play(Sfx::UiSelect);
-        }
+        moveSelection(0);
     }
     if (ui::downPressed() ||
         (IsGamepadAvailable(0) && GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) > 0.5f)) {
-        selection_ = 1;
-        if (ctx_.audio) {
-            ctx_.audio->play(Sfx::UiSelect);
-        }
+        moveSelection(1);
     }
     if (ui::backPressed()) {
         if (ctx_.audio) {
@@ -60,14 +77,7 @@ void PauseScene::update(float) {
         return;
     }
     if (ui::confirmPressed()) {
-        if (ctx_.audio) {
-            ctx_.audio->play(Sfx::UiSelect);
-        }
-        if (selection_ == 0) {
-            ctx_.scenes->pop();
-        } else {
-            ctx_.scenes->switchTo(std::make_unique<MainMenuScene>(ctx_));
-        }
+        confirm();
     }
 }
 

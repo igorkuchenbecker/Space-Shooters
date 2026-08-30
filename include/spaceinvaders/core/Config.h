@@ -15,7 +15,7 @@ inline constexpr float kPlayerSpeed = 340.0f;
 inline constexpr float kPlayerFireCooldown = 0.34f;
 inline constexpr float kPlayerInvulnTime = 2.0f;
 inline constexpr int kStartLives = 3;
-inline constexpr float kPlayerLineY = 506.0f;  // linha-base da nave (abaixo dos escudos)
+inline constexpr float kPlayerLineY = 496.0f;  // linha-base da nave (abaixo dos escudos)
 
 // Formação de inimigos.
 inline constexpr int kFormationCols = 11;
@@ -41,7 +41,8 @@ inline constexpr float kEnemyShotMaxLifetime = 7.0f;
 
 // Escudos (barreiras destrutíveis por bloco).
 inline constexpr int kShieldCount = 4;
-inline constexpr float kShieldY = 474.0f;
+// Base dos escudos: 430 + 6 blocos de 8px = 478, logo acima da nave (496).
+inline constexpr float kShieldY = 430.0f;
 inline constexpr float kShieldWidth = 10.0f * 8.0f;  // 10 colunas de 8px
 inline constexpr float kShieldBlockSize = 8.0f;
 
@@ -50,6 +51,9 @@ inline constexpr int kScoreTopRow = 300;
 inline constexpr int kScoreMidRow = 200;
 inline constexpr int kScoreLowRow = 100;
 inline constexpr int kScoreBonusLevelClear = 50;
+// Vida extra a cada N pontos (recompensa clássica de fliperama).
+inline constexpr int kExtraLifeEvery = 3000;
+inline constexpr int kMaxLives = 6;
 
 // Curvas de dificuldade por nível.
 inline constexpr float kLevelSpeedFactor = 0.12f;

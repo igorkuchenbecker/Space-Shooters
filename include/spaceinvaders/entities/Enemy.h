@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "core/Color.h"
 #include "core/Vec2.h"
 
 namespace si {
@@ -14,8 +15,12 @@ enum class EnemyKind : std::uint8_t {
 
 std::int64_t scoreForKind(EnemyKind kind);
 
+// Cor canônica do tipo — fonte única para render e partículas, sem literais
+// duplicados entre a camada pura e a camada raylib.
+Color colorForKind(EnemyKind kind);
+
 struct Enemy {
-    Vec2 pos{};           // top-left no mundo
+    Vec2 pos{};           // top-left
     EnemyKind kind = EnemyKind::Low;
     std::int64_t scoreValue = 0;
     bool alive = true;

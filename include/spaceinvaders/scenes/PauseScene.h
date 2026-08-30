@@ -21,6 +21,11 @@ public:
 private:
     AppContext& ctx_;
     int selection_ = 0;
+    // Sair do pause para o menu não deve retomar a música da partida.
+    bool resumeMusicOnExit_ = true;
+
+    void moveSelection(int index);
+    void confirm();
 };
 
 }  // namespace si

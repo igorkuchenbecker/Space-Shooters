@@ -17,6 +17,8 @@ private:
     AppContext& ctx_;
     int selection_ = 0;
     bool newRecord_ = false;
+
+    void moveSelection(int index);
 };
 
 }  // namespace si
